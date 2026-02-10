@@ -1,6 +1,6 @@
 # Codex Log UI
 
-<img width="1922" height="1171" alt="image" src="https://github.com/user-attachments/assets/0818ca41-93b9-4863-ab9b-cb6eabb2a813" />
+<img width="1922" height="1171" alt="image" src="https://github.com/user-attachments/assets/9b9b6557-e7a9-418f-a5c6-c6ce930f4193" />
 
 Local web app for browsing Codex CLI session history.
 
