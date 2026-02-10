@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Codex Session Viewer</title>
+    <link rel="stylesheet" href="./styles.css">
+    <script src="./app.js" defer></script>
+  </head>
+  <body>
+    <div class="bg-ornament"></div>
+    <div class="app-shell">
+      <aside class="catalog-panel">
+        <header class="catalog-header">
+          <p class="kicker">Codex CLI</p>
+          <h1>Session Catalog</h1>
+          <p class="catalog-subtitle">Browse logs from <code>~/.codex/sessions</code> and <code>./sessions</code>.</p>
+          <div class="catalog-controls">
+            <input id="searchInput" type="search" placeholder="Filter by path, cwd, source">
+            <button id="refreshButton" type="button">Refresh</button>
+          </div>
+        </header>
+        <div id="sessionList" class="session-list" aria-live="polite"></div>
+      </aside>
+
+      <main class="viewer-panel">
+        <header class="viewer-header">
+          <div>
+            <p class="kicker">History</p>
+            <h2 id="sessionTitle">Select a session</h2>
+            <p id="sessionMeta" class="viewer-subtitle">No session selected.</p>
+          </div>
+          <div class="mode-picker" role="radiogroup" aria-label="Timeline Mode">
+            <label>
+              <input type="radio" name="mode" value="conversation" checked>
+              Conversation + tools
+            </label>
+            <label>
+              <input type="radio" name="mode" value="full">
+              Full timeline
+            </label>
+          </div>
+        </header>
+
+        <section id="sessionStats" class="session-stats"></section>
+        <section id="roleFilters" class="role-filters"></section>
+        <section id="timeline" class="timeline">
+          <p class="placeholder">Select a session from the catalog.</p>
+        </section>
+      </main>
+    </div>
+  </body>
+</html>
