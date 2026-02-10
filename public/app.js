@@ -96,7 +96,7 @@ function renderInlineMarkdown(text) {
   const codeTokens = [];
 
   rendered = rendered.replace(/`([^`\n]+)`/g, (_, code) => {
-    const token = `__INLINE_CODE_${codeTokens.length}__`;
+    const token = `@@CODXIC${codeTokens.length}@@`;
     codeTokens.push(`<code>${code}</code>`);
     return token;
   });
@@ -113,7 +113,7 @@ function renderInlineMarkdown(text) {
   rendered = rendered.replace(/(^|[^_])_([^_\n]+)_/g, '$1<em>$2</em>');
 
   codeTokens.forEach((html, index) => {
-    rendered = rendered.replace(new RegExp(`__INLINE_CODE_${index}__`, 'g'), html);
+    rendered = rendered.split(`@@CODXIC${index}@@`).join(html);
   });
 
   return rendered;
@@ -396,7 +396,29 @@ function getModeEntries() {
     return [];
   }
   const allEntries = Array.isArray(state.selectedSession.entries) ? state.selectedSession.entries : [];
-  return state.mode === 'full' ? allEntries : allEntries.filter((entry) => entry && entry.primary);
+  if (state.mode !== 'full') {
+    return allEntries.filter((entry) => entry && entry.primary);
+  }
+
+  const hasCanonicalMessageRecords = allEntries.some(
+    (entry) =>
+      entry &&
+      (entry.eventType === 'response_item/message' || entry.eventType === 'response_item/reasoning')
+  );
+
+  if (!hasCanonicalMessageRecords) {
+    return allEntries;
+  }
+
+  const mirroredEventTypes = new Set([
+    'event_msg/user_message',
+    'event_msg/agent_message',
+    'event_msg/agent_reasoning'
+  ]);
+
+  return allEntries.filter(
+    (entry) => !(entry && typeof entry.eventType === 'string' && mirroredEventTypes.has(entry.eventType))
+  );
 }
 
 function getEntryRole(entry) {
