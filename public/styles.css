@@ -372,6 +372,48 @@ button:hover {
   gap: 0.35rem 0.6rem;
 }
 
+.role-expand-title {
+  margin-top: 0.75rem;
+}
+
+.role-expand-row {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.role-expand-select {
+  min-width: min(22rem, 100%);
+  max-width: 100%;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--ink);
+  font-size: 0.8rem;
+  padding: 0.36rem 0.5rem;
+}
+
+.role-expand-button {
+  border: 1px solid rgba(16, 34, 38, 0.24);
+  border-radius: 999px;
+  background: #f7fbfc;
+  color: #1d3a3f;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.26rem 0.58rem;
+}
+
+.role-expand-button:hover {
+  border-color: rgba(15, 122, 114, 0.45);
+}
+
+.role-collapse-button {
+  background: #fff7f7;
+  color: #7b1e1e;
+}
+
 .role-filter-item {
   display: inline-flex;
   align-items: center;
@@ -391,6 +433,7 @@ button:hover {
   overflow: auto;
   padding: 1rem;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   gap: 0.68rem;
 }
@@ -408,6 +451,8 @@ button:hover {
   border-left: 4px solid var(--event);
   border-radius: var(--radius-md);
   background: var(--surface-strong);
+  min-width: 0;
+  max-width: 100%;
   padding: 0.68rem 0.75rem;
   animation: fadeSlide 160ms ease both;
   animation-delay: calc(var(--i, 0) * 16ms);
@@ -428,12 +473,14 @@ button:hover {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
+  min-width: 0;
   gap: 0.4rem 0.5rem;
   margin-bottom: 0.45rem;
 }
 
 .entry-toggle {
   margin-left: auto;
+  flex-shrink: 0;
   font-size: 0.72rem;
   padding: 0.22rem 0.5rem;
   border-radius: 999px;
@@ -462,6 +509,7 @@ button:hover {
   font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
   font-size: 0.68rem;
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .timestamp,
@@ -473,6 +521,7 @@ button:hover {
 .entry-body {
   margin: 0;
   line-height: 1.5;
+  max-width: 100%;
   word-break: break-word;
 }
 
@@ -480,6 +529,11 @@ button:hover {
   white-space: pre-wrap;
   font-size: 0.9rem;
   font-family: "IBM Plex Mono", "JetBrains Mono", "Fira Code", monospace;
+  overflow-wrap: anywhere;
+}
+
+.entry-body.json-body {
+  tab-size: 2;
 }
 
 .entry-body.markdown-body {

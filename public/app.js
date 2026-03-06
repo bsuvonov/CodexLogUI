@@ -8,7 +8,8 @@ const state = {
   expandedMonths: new Set(),
   expandedDays: new Set(),
   expandedEntries: new Set(),
-  hiddenRoles: new Set()
+  hiddenRoles: new Set(),
+  expandRole: '*'
 };
 
 const elements = {
@@ -107,10 +108,8 @@ function renderInlineMarkdown(text) {
   });
 
   rendered = rendered.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-  rendered = rendered.replace(/__([^_]+)__/g, '<strong>$1</strong>');
   rendered = rendered.replace(/~~([^~]+)~~/g, '<del>$1</del>');
   rendered = rendered.replace(/(^|[^\*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
-  rendered = rendered.replace(/(^|[^_])_([^_\n]+)_/g, '$1<em>$2</em>');
 
   codeTokens.forEach((html, index) => {
     rendered = rendered.split(`@@CODXIC${index}@@`).join(html);
@@ -168,7 +167,7 @@ function renderMarkdown(text) {
       continue;
     }
 
-    if (/^(\*{3,}|-{3,}|_{3,})\s*$/.test(line.trim())) {
+    if (/^(\*{3,}|-{3,})\s*$/.test(line.trim())) {
       closeLists();
       html.push('<hr>');
       continue;
@@ -236,6 +235,77 @@ function shouldRenderMarkdown(entry) {
       entry.role === 'system' ||
       entry.role === 'reasoning')
   );
+}
+
+function prettifyJsonCandidate(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const startsWithObject = trimmed.startsWith('{') && trimmed.endsWith('}');
+  const startsWithArray = trimmed.startsWith('[') && trimmed.endsWith(']');
+  if (!startsWithObject && !startsWithArray) {
+    return null;
+  }
+  try {
+    return JSON.stringify(JSON.parse(trimmed), null, 2);
+  } catch {
+    return null;
+  }
+}
+
+function maybePrettifyJsonText(text) {
+  const fullPayloadPretty = prettifyJsonCandidate(text);
+  if (fullPayloadPretty !== null) {
+    return { text: fullPayloadPretty, isJson: true };
+  }
+
+  if (typeof text !== 'string') {
+    return { text, isJson: false };
+  }
+
+  const lines = text.split('\n');
+  const formattedLines = [];
+  let hasJsonLine = false;
+
+  for (const line of lines) {
+    const prettyLine = prettifyJsonCandidate(line);
+    if (prettyLine !== null) {
+      hasJsonLine = true;
+      formattedLines.push(prettyLine);
+      continue;
+    }
+
+    const objectStart = line.indexOf('{');
+    const arrayStart = line.indexOf('[');
+    const firstJsonStart =
+      objectStart === -1
+        ? arrayStart
+        : arrayStart === -1
+          ? objectStart
+          : Math.min(objectStart, arrayStart);
+
+    if (firstJsonStart > 0) {
+      const prefix = line.slice(0, firstJsonStart).trimEnd();
+      const jsonTail = line.slice(firstJsonStart);
+      const prettyTail = prettifyJsonCandidate(jsonTail);
+      if (prettyTail !== null) {
+        hasJsonLine = true;
+        formattedLines.push(`${prefix}\n${prettyTail}`);
+        continue;
+      }
+    }
+
+    formattedLines.push(line);
+  }
+
+  if (!hasJsonLine) {
+    return { text, isJson: false };
+  }
+  return { text: formattedLines.join('\n'), isJson: true };
 }
 
 function getSessionDateParts(session) {
@@ -428,6 +498,32 @@ function getEntryRole(entry) {
   return entry.role;
 }
 
+function getEntryKey(entry) {
+  return `${entry.line}:${entry.eventType || 'event'}`;
+}
+
+function expandEntriesByRole(role) {
+  const entries = getModeEntries();
+  for (const entry of entries) {
+    if (role && getEntryRole(entry) !== role) {
+      continue;
+    }
+    state.expandedEntries.add(getEntryKey(entry));
+  }
+  renderTimeline();
+}
+
+function collapseEntriesByRole(role) {
+  const entries = getModeEntries();
+  for (const entry of entries) {
+    if (role && getEntryRole(entry) !== role) {
+      continue;
+    }
+    state.expandedEntries.delete(getEntryKey(entry));
+  }
+  renderTimeline();
+}
+
 function compareRolesForFilter(leftRole, rightRole) {
   const leftLabel = roleLabel(leftRole).toLowerCase();
   const rightLabel = roleLabel(rightRole).toLowerCase();
@@ -471,6 +567,7 @@ function renderRoleFilters() {
   list.className = 'role-filters-list';
 
   const roles = Array.from(roleCounts.keys()).sort(compareRolesForFilter);
+  const totalEntries = entries.length;
   roles.forEach((role) => {
     const label = document.createElement('label');
     label.className = 'role-filter-item';
@@ -496,6 +593,60 @@ function renderRoleFilters() {
   });
 
   elements.roleFilters.appendChild(list);
+
+  const expandTitle = document.createElement('p');
+  expandTitle.className = 'role-filters-title role-expand-title';
+  expandTitle.textContent = 'Expand or collapse messages by role:';
+  elements.roleFilters.appendChild(expandTitle);
+
+  const expandRow = document.createElement('div');
+  expandRow.className = 'role-expand-row';
+
+  const expandSelect = document.createElement('select');
+  expandSelect.className = 'role-expand-select';
+
+  const allOption = document.createElement('option');
+  allOption.value = '*';
+  allOption.textContent = `All roles (${totalEntries})`;
+  expandSelect.appendChild(allOption);
+
+  roles.forEach((role) => {
+    const option = document.createElement('option');
+    option.value = role;
+    option.textContent = `${roleLabel(role)} (${roleCounts.get(role)})`;
+    expandSelect.appendChild(option);
+  });
+
+  if (state.expandRole !== '*' && !roleCounts.has(state.expandRole)) {
+    state.expandRole = '*';
+  }
+  expandSelect.value = state.expandRole;
+  expandSelect.addEventListener('change', () => {
+    state.expandRole = expandSelect.value;
+  });
+  expandRow.appendChild(expandSelect);
+
+  const expandButton = document.createElement('button');
+  expandButton.type = 'button';
+  expandButton.className = 'role-expand-button';
+  expandButton.textContent = 'Expand All';
+  expandButton.addEventListener('click', () => {
+    const selectedRole = state.expandRole === '*' ? null : state.expandRole;
+    expandEntriesByRole(selectedRole);
+  });
+  expandRow.appendChild(expandButton);
+
+  const collapseButton = document.createElement('button');
+  collapseButton.type = 'button';
+  collapseButton.className = 'role-expand-button role-collapse-button';
+  collapseButton.textContent = 'Collapse All';
+  collapseButton.addEventListener('click', () => {
+    const selectedRole = state.expandRole === '*' ? null : state.expandRole;
+    collapseEntriesByRole(selectedRole);
+  });
+  expandRow.appendChild(collapseButton);
+
+  elements.roleFilters.appendChild(expandRow);
 }
 
 function renderTimeline() {
@@ -522,7 +673,7 @@ function renderTimeline() {
     const safeRole = typeof entry.role === 'string' ? entry.role.replace(/[^a-z0-9_]/gi, '_') : 'event';
     article.className = `entry role-${safeRole}`;
     article.style.setProperty('--i', String(Math.min(index, 20)));
-    const entryKey = `${entry.line}:${entry.eventType || 'event'}`;
+    const entryKey = getEntryKey(entry);
     const isExpanded = state.expandedEntries.has(entryKey);
     if (!isExpanded) {
       article.classList.add('collapsed');
@@ -574,15 +725,21 @@ function renderTimeline() {
 
     const bodyText =
       typeof entry.text === 'string' && entry.text.trim() ? entry.text : '[No text payload]';
+    const maybeJson = maybePrettifyJsonText(bodyText);
+    const renderedText = maybeJson.text;
+    const useMarkdown = shouldRenderMarkdown(entry) && !maybeJson.isJson;
     let body;
-    if (shouldRenderMarkdown(entry)) {
+    if (useMarkdown) {
       body = document.createElement('div');
       body.className = 'entry-body markdown-body';
-      body.innerHTML = renderMarkdown(bodyText);
+      body.innerHTML = renderMarkdown(renderedText);
     } else {
       body = document.createElement('pre');
       body.className = 'entry-body plain-body';
-      body.textContent = bodyText;
+      if (maybeJson.isJson) {
+        body.classList.add('json-body');
+      }
+      body.textContent = renderedText;
     }
     article.appendChild(body);
 

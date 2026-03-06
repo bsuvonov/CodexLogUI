@@ -381,6 +381,51 @@ function formatFunctionArguments(argumentsText) {
   }
 }
 
+function prettifyJsonInText(text) {
+  if (typeof text !== 'string' || !text) {
+    return text;
+  }
+  const trimmed = text.trim();
+  if (trimmed) {
+    try {
+      if (
+        (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
+        (trimmed.startsWith('[') && trimmed.endsWith(']'))
+      ) {
+        return JSON.stringify(JSON.parse(trimmed), null, 2);
+      }
+    } catch {
+      // Keep original text when payload is not strict JSON.
+    }
+  }
+
+  const lines = text.split('\n');
+  let hasJsonLine = false;
+  const formattedLines = lines.map((line) => {
+    const lineTrimmed = line.trim();
+    if (!lineTrimmed) {
+      return line;
+    }
+    try {
+      if (
+        (lineTrimmed.startsWith('{') && lineTrimmed.endsWith('}')) ||
+        (lineTrimmed.startsWith('[') && lineTrimmed.endsWith(']'))
+      ) {
+        hasJsonLine = true;
+        return JSON.stringify(JSON.parse(lineTrimmed), null, 2);
+      }
+    } catch {
+      return line;
+    }
+    return line;
+  });
+
+  if (!hasJsonLine) {
+    return text;
+  }
+  return formattedLines.join('\n');
+}
+
 function summarizeTurnContext(payload) {
   const bits = [];
   if (typeof payload.cwd === 'string' && payload.cwd) {
@@ -501,7 +546,7 @@ function buildEntry(record, lineNumber) {
       if (typeof payload.call_id === 'string' && payload.call_id) {
         pieces.push(`call_id: ${payload.call_id}`);
       }
-      const outputText = stringifyUnknown(payload.output, 12000);
+      const outputText = prettifyJsonInText(stringifyUnknown(payload.output, 200000));
       if (outputText) {
         pieces.push(outputText);
       }
